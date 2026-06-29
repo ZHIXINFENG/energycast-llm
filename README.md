@@ -1,52 +1,32 @@
-# EnergyCast-LLM
+# EnergyCast — 电力负荷预测 + LLM 分析系统
 
-> Time-series electricity load forecasting powered by Temporal Fusion Transformer,
-> with an LLM layer for natural language querying and result interpretation.
+基于UCI公开电力数据集，构建端到端时序预测pipeline，训练Temporal Fusion Transformer（TFT）模型预测未来24小时用电量，并接入LLM实现自然语言交互分析。
 
-## Motivation
+## 技术栈
 
-Traditional forecasting models produce numbers. This project adds a reasoning
-layer on top: ask questions in plain language, get predictions back with
-explanations useful for energy system operators and analysts who need both
-accuracy and interpretability.
+- **时序预测**：Temporal Fusion Transformer（pytorch-forecasting）
+- **LLM接入**：Groq API（llama-3.3-70b-versatile）
+- **数据处理**：Pandas、Parquet
+- **训练框架**：PyTorch Lightning
 
-## Architecture
+## Pipeline
 
-```
-User (natural language)
-        │
-        ▼
-  [LLM Agent Layer]          ← intent parsing, tool calling, result narration
-        │
-   ┌────┴────┐
-   │         │
-   ▼         ▼
-[Forecast]  [Explain]        ← TFT model inference / feature importance
-   │
-   ▼
-[Data Pipeline]              ← UCI Electricity Load Dataset, feature engineering
-```
+1. **数据处理**：下载UCI电力数据集（2011-2014，370个客户），聚合为总负荷，提取时间特征和滞后特征，切分为训练/验证/测试集
+2. **模型训练**：TFT模型，输入过去168小时（7天），预测未来24小时，使用QuantileLoss输出预测区间
+3. **LLM接入**：将TFT预测结果传入LLM，支持自然语言查询和分析
 
-## Quickstart
+## 结果
 
-```bash
-pip install -r requirements.txt
-python pipeline/prepare_data.py
-python models/train.py
-python interface/app.py
-```
+![预测vs真实值](figures/prediction_vs_actual.png)
 
-## Stack
+模型在测试集上准确捕捉日用电趋势，白天高负荷时段误差约5-10%。
 
-| Component | Technology |
-|---|---|
-| Forecasting model | Temporal Fusion Transformer (PyTorch Forecasting) |
-| LLM backend | Claude API (claude-sonnet) |
-| Interface | Gradio |
+![特征重要性](figures/feature_importance.png)
 
-## Background
+特征重要性分析显示：
+- Encoder端：历史load（32%）和hour（20%）是最重要的输入特征
+- Decoder端：hour（62%）主导未来预测，验证了电力用量的强时间规律
 
-Built as part of a transition from control systems / MPC into LLM-powered
-forecasting applications. The forecasting layer draws on experience with
-predictive control and time-series modeling; the LLM layer explores how
-language models can serve as interfaces to specialized numerical models.
+## 数据来源
+
+[UCI Electricity Load Diagrams 2011-2014](https://archive.ics.uci.edu/dataset/321/electricityloaddiagrams20112014)
